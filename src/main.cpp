@@ -48,6 +48,7 @@ int WaterLevel; //Water level
 int Rainwater; //Rainfall
 int duration; //Ultrasonic pulse duration
 float distance; //Distance measured by ultrasonic sensor
+bool boxOpen = false; //Feeding box state, to avoid re-writing servo every loop
 
 void setup() {
     Serial.begin(9600);
@@ -168,15 +169,17 @@ void getSensorsData() {
 void loop() {
     //Measure distance and open/close feeding box accordingly
     float dist = getDistance();
-    Serial.print("distance: ");
-    Serial.print(dist);
-    Serial.println(" cm");
-    if (dist <= 10) {
-        Serial.println("servo -> 70 (open)");
+    // Serial.print("distance: ");
+    // Serial.print(dist);
+    // Serial.println(" cm");
+    if (!boxOpen && dist <= 10) {
+        // Serial.println("servo -> 70 (open)");
         myservo.write(70);
-    } else {
-        Serial.println("servo -> 180 (close)");
+        boxOpen = true;
+    } else if (boxOpen && dist > 15) {
+        // Serial.println("servo -> 180 (close)");
         myservo.write(180);
+        boxOpen = false;
     }
 
     //Check whether a client is connected to the web server
