@@ -49,6 +49,8 @@ int Rainwater; //Rainfall
 int duration; //Ultrasonic pulse duration
 float distance; //Distance measured by ultrasonic sensor
 bool boxOpen = false; //Feeding box state, to avoid re-writing servo every loop
+unsigned long lastFeedingCheck = 0; //Last time the feeding box distance was checked
+const unsigned long FEEDING_CHECK_INTERVAL = 2000; //ms between distance checks
 
 void setup() {
     Serial.begin(9600);
@@ -149,6 +151,28 @@ float getDistance() {
     return distance;
 }
 
+//Measure distance and open/close feeding box accordingly (hysteresis: open <=10cm, close >15cm)
+void updateFeedingBox() {
+    if (millis() - lastFeedingCheck < FEEDING_CHECK_INTERVAL) {
+        return;
+    }
+    lastFeedingCheck = millis();
+
+    float dist = getDistance();
+    // Serial.print("distance: ");
+    // Serial.print(dist);
+    // Serial.println(" cm");
+    if (!boxOpen && dist <= 10) {
+        // Serial.println("servo -> 70 (open)");
+        myservo.write(70);
+        boxOpen = true;
+    } else if (boxOpen && dist > 15) {
+        // Serial.println("servo -> 180 (close)");
+        myservo.write(180);
+        boxOpen = false;
+    }
+}
+
 void getSensorsData() {
     //Acquire data
     int chk = DHT11.read(DHT11PIN);
@@ -167,20 +191,7 @@ void getSensorsData() {
 }
 
 void loop() {
-    //Measure distance and open/close feeding box accordingly
-    float dist = getDistance();
-    // Serial.print("distance: ");
-    // Serial.print(dist);
-    // Serial.println(" cm");
-    if (!boxOpen && dist <= 10) {
-        // Serial.println("servo -> 70 (open)");
-        myservo.write(70);
-        boxOpen = true;
-    } else if (boxOpen && dist > 15) {
-        // Serial.println("servo -> 180 (close)");
-        myservo.write(180);
-        boxOpen = false;
-    }
+    updateFeedingBox();
 
     //Check whether a client is connected to the web server
     //When the client is connected to server, "server.available()" returns a WiFiClient object for communication at client-side.
