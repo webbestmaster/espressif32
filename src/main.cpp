@@ -52,6 +52,8 @@ unsigned long lastLightCheck = 0; //Last time the photoresistor was read
 const unsigned long LIGHT_CHECK_INTERVAL = 2000; //ms between light checks
 unsigned long lastWaterLevelCheck = 0; //Last time the water level sensor was read
 const unsigned long WATER_LEVEL_CHECK_INTERVAL = 2000; //ms between water level checks
+unsigned long lastSoilHumidityCheck = 0; //Last time the soil humidity sensor was read
+const unsigned long SOIL_HUMIDITY_CHECK_INTERVAL = 2000; //ms between soil humidity checks
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
 int lastRawButtonReading = HIGH; //Raw button reading from the previous loop(), for bounce detection
@@ -194,7 +196,9 @@ void logSensorData() {
     Serial.print(" | Light: ");
     Serial.print(light);
     Serial.print(" | Water: ");
-    Serial.println(waterLevel);
+    Serial.print(waterLevel);
+    Serial.print(" | Soil: ");
+    Serial.println(soilHumidity);
 
     //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
     String line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
@@ -257,6 +261,16 @@ void updateWaterLevel() {
     waterLevel = analogRead(WATERLEVELPIN);
 }
 
+//Read soil humidity sensor (higher value = drier soil)
+void updateSoilHumidity() {
+    if (millis() - lastSoilHumidityCheck < SOIL_HUMIDITY_CHECK_INTERVAL) {
+        return;
+    }
+    lastSoilHumidityCheck = millis();
+
+    soilHumidity = analogRead(SOILHUMIDITYPIN);
+}
+
 void loop() {
     updateFeedingBox();
     updateFan();
@@ -265,5 +279,6 @@ void loop() {
     updateRainwater();
     updateLight();
     updateWaterLevel();
+    updateSoilHumidity();
     logSensorData();
 }
