@@ -40,17 +40,22 @@ Servo myservo; // create servo object to control a servo
 //Define variable as detected values
 String request;
 String dataBuffer;
-int Temperature; //Temperature
-int Humidity; //Humidity
-int SoilHumidity; //Soil humidity
-int Light; //Brightness
-int WaterLevel; //Water level
-int Rainwater; //Rainfall
+int temperature; //Temperature
+int humidity; //Humidity
+int soilHumidity; //Soil humidity
+int light; //Brightness
+int waterLevel; //Water level
+int rainwater; //Rainfall
 int duration; //Ultrasonic pulse duration
 float distance; //Distance measured by ultrasonic sensor
-bool boxOpen = false; //Feeding box state, to avoid re-writing servo every loop
+bool isBoxOpen = false; //Feeding box state, to avoid re-writing servo every loop
 unsigned long lastFeedingCheck = 0; //Last time the feeding box distance was checked
 const unsigned long FEEDING_CHECK_INTERVAL = 2000; //ms between distance checks
+unsigned long lastFanCheck = 0; //Last time the temperature was checked for the fan
+const unsigned long FAN_CHECK_INTERVAL = 2000; //ms between temperature checks
+const int FAN_TEMP_THRESHOLD = 21; //°C, fan turns on at or above this temperature
+unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
+const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
 
 void setup() {
     Serial.begin(9600);
@@ -159,17 +164,46 @@ void updateFeedingBox() {
     lastFeedingCheck = millis();
 
     float dist = getDistance();
-    Serial.print("distance: ");
-    Serial.print(dist);
-    Serial.println(" cm");
     if (dist <= 5) {
-        Serial.println("servo -> 70 (open)");
         myservo.write(70);
-        boxOpen = true;
+        isBoxOpen = true;
     } else if (dist > 7) {
-        Serial.println("servo -> 180 (close)");
         myservo.write(180);
-        boxOpen = false;
+        isBoxOpen = false;
+    }
+}
+
+//Print current sensor readings in one human-readable line, at most once per LOG_INTERVAL
+void logSensorData() {
+    if (millis() - lastLogCheck < LOG_INTERVAL) {
+        return;
+    }
+    lastLogCheck = millis();
+
+    Serial.print("Temp: ");
+    Serial.print(temperature);
+    Serial.print(" C | Distance: ");
+    Serial.print(distance);
+    Serial.print(" cm | Box: ");
+    Serial.println(isBoxOpen ? "open" : "closed");
+}
+
+//Read temperature and auto-control fan via PWM (on >= FAN_TEMP_THRESHOLD, off otherwise)
+void updateFan() {
+    if (millis() - lastFanCheck < FAN_CHECK_INTERVAL) {
+        return;
+    }
+    lastFanCheck = millis();
+
+    DHT11.read(DHT11PIN);
+    temperature = DHT11.temperature;
+
+    if (temperature >= FAN_TEMP_THRESHOLD) {
+        analogWrite(FANPIN1, 100);
+        analogWrite(FANPIN2, 0);
+    } else {
+        analogWrite(FANPIN1, 0);
+        analogWrite(FANPIN2, 0);
     }
 }
 
@@ -177,21 +211,23 @@ void getSensorsData() {
     //Acquire data
     int chk = DHT11.read(DHT11PIN);
     //Steam sensor
-    Rainwater = analogRead(RAINWATERPIN);
+    rainwater = analogRead(RAINWATERPIN);
     //Photoresistor
-    Light = analogRead(LIGHTPIN);
+    light = analogRead(LIGHTPIN);
     //Soil humidity sensor
-    SoilHumidity = analogRead(SOILHUMIDITYPIN) * 2.3;
+    soilHumidity = analogRead(SOILHUMIDITYPIN) * 2.3;
     //Water level sensor
-    WaterLevel = analogRead(WATERLEVELPIN) * 2.5;
+    waterLevel = analogRead(WATERLEVELPIN) * 2.5;
     //Temperature
-    Temperature = DHT11.temperature;
+    temperature = DHT11.temperature;
     //Humidity
-    Humidity = DHT11.humidity;
+    humidity = DHT11.humidity;
 }
 
 void loop() {
     updateFeedingBox();
+    updateFan();
+    logSensorData();
 
     //Check whether a client is connected to the web server
     //When the client is connected to server, "server.available()" returns a WiFiClient object for communication at client-side.
@@ -209,12 +245,12 @@ void loop() {
             getSensorsData();
             //put all data into "dataBuffer"
             dataBuffer = "";
-            dataBuffer += String(Temperature,HEX);
-            dataBuffer += String(Humidity,HEX);
-            dataBuffer += dataHandle(SoilHumidity);
-            dataBuffer += dataHandle(Light);
-            dataBuffer += dataHandle(WaterLevel);
-            dataBuffer += dataHandle(Rainwater);
+            dataBuffer += String(temperature,HEX);
+            dataBuffer += String(humidity,HEX);
+            dataBuffer += dataHandle(soilHumidity);
+            dataBuffer += dataHandle(light);
+            dataBuffer += dataHandle(waterLevel);
+            dataBuffer += dataHandle(rainwater);
             //Send data to server, transmit to APP
             client.print(dataBuffer);
             delay(500);
@@ -232,16 +268,7 @@ void loop() {
                 digitalWrite(RELAYPIN,LOW);
                 delay(650);
             }
-            //Fan
-            else if (request == "c") {
-                delay(800);
-                digitalWrite(FANPIN1, HIGH);
-                digitalWrite(FANPIN2, LOW);
-                delay(200);
-            } else if (request == "C") {
-                digitalWrite(FANPIN1, LOW);
-                digitalWrite(FANPIN2, LOW);
-            }
+            //Fan is auto-controlled by temperature, see updateFan()
             //Feeding box
             else if (request == "d") {
                 //Servo rotates to 180В°, open feeding box
