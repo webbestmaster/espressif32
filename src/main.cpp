@@ -26,6 +26,7 @@
 #define BUZZERPIN       16  //Buzzer pin
 #define TRIGPIN         12  //Ultrasonic sensor trig pin
 #define ECHOPIN         13  //Ultrasonic sensor echo pin
+#define PIRPIN          23  //PIR motion sensor pin
 
 const char *ssid = "TP-Link_C36C";
 const char *pwd = "36856008";
@@ -53,9 +54,10 @@ unsigned long lastFeedingCheck = 0; //Last time the feeding box distance was che
 const unsigned long FEEDING_CHECK_INTERVAL = 2000; //ms between distance checks
 unsigned long lastFanCheck = 0; //Last time the temperature was checked for the fan
 const unsigned long FAN_CHECK_INTERVAL = 2000; //ms between temperature checks
-const int FAN_TEMP_THRESHOLD = 25; //°C, fan turns on at or above this temperature
+const int FAN_TEMP_THRESHOLD = 28; //°C, fan turns on at or above this temperature
 unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
+bool isMotionDetected = false; //PIR motion sensor state
 
 void setup() {
     Serial.begin(9600);
@@ -102,6 +104,7 @@ void setup() {
     pinMode(BUZZERPIN,OUTPUT);
     pinMode(TRIGPIN,OUTPUT);
     pinMode(ECHOPIN,INPUT);
+    pinMode(PIRPIN,INPUT);
     delay(1000);
 
     // attaches the servo on pin 26 to the servo object
@@ -114,7 +117,8 @@ void setup() {
 
 void Music() {
     // iterate over the notes of the melody:
-    for (int thisNote = 0; thisNote < 98; thisNote++) {
+    const int noteCount = sizeof(melody2) / sizeof(melody2[0]);
+    for (int thisNote = 0; thisNote < noteCount; thisNote++) {
         // to calculate the note duration, take one second
         // divided by the note type.
         //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
@@ -173,6 +177,15 @@ void updateFeedingBox() {
     }
 }
 
+//Read PIR motion sensor state (instant, no throttling needed)
+void updateMotion() {
+    isMotionDetected = digitalRead(PIRPIN);
+
+    if (isMotionDetected != 0) {
+        Serial.print(isMotionDetected);
+    }
+}
+
 //Print current sensor readings in one human-readable line, at most once per LOG_INTERVAL
 void logSensorData() {
     if (millis() - lastLogCheck < LOG_INTERVAL) {
@@ -185,7 +198,9 @@ void logSensorData() {
     Serial.print(" C | Distance: ");
     Serial.print(distance);
     Serial.print(" cm | Box: ");
-    Serial.println(isBoxOpen ? "open" : "closed");
+    Serial.print(isBoxOpen ? "open" : "closed");
+    Serial.print(" | Motion: ");
+    Serial.println(isMotionDetected ? "yes" : "no");
 }
 
 //Read temperature and auto-control fan via PWM (on >= FAN_TEMP_THRESHOLD, off otherwise)
@@ -227,6 +242,7 @@ void getSensorsData() {
 void loop() {
     updateFeedingBox();
     updateFan();
+    updateMotion();
     logSensorData();
 
     //Check whether a client is connected to the web server
