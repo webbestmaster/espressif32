@@ -46,6 +46,8 @@ const unsigned long FAN_CHECK_INTERVAL = 2000; //ms between temperature checks
 const int FAN_TEMP_THRESHOLD = 28; //°C, fan turns on at or above this temperature
 unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
+unsigned long lastRainCheck = 0; //Last time the steam/rainwater sensor was read
+const unsigned long RAIN_CHECK_INTERVAL = 2000; //ms between rainwater checks
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
 int lastRawButtonReading = HIGH; //Raw button reading from the previous loop(), for bounce detection
@@ -173,7 +175,9 @@ void logSensorData() {
     Serial.print(" | LED: ");
     Serial.print(isLedOn ? "on" : "off");
     Serial.print(" | Button raw: ");
-    Serial.println(digitalRead(BUTTONPIN));
+    Serial.print(digitalRead(BUTTONPIN));
+    Serial.print(" | Rain: ");
+    Serial.println(rainwater);
 
     //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
     String line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
@@ -206,21 +210,14 @@ void updateFan() {
     }
 }
 
-void getSensorsData() {
-    //Acquire data
-    int chk = DHT11.read(DHT11PIN);
-    //Steam sensor
+//Read steam/rainwater sensor (conductive traces, higher value = wetter)
+void updateRainwater() {
+    if (millis() - lastRainCheck < RAIN_CHECK_INTERVAL) {
+        return;
+    }
+    lastRainCheck = millis();
+
     rainwater = analogRead(RAINWATERPIN);
-    //Photoresistor
-    light = analogRead(LIGHTPIN);
-    //Soil humidity sensor
-    soilHumidity = analogRead(SOILHUMIDITYPIN) * 2.3;
-    //Water level sensor
-    waterLevel = analogRead(WATERLEVELPIN) * 2.5;
-    //Temperature
-    temperature = DHT11.temperature;
-    //Humidity
-    humidity = DHT11.humidity;
 }
 
 void loop() {
@@ -228,5 +225,6 @@ void loop() {
     updateFan();
     updateMotion();
     updateButton();
+    updateRainwater();
     logSensorData();
 }
