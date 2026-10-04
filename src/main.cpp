@@ -162,7 +162,9 @@ void logSensorData() {
 
     Serial.print("Temp: ");
     Serial.print(temperature);
-    Serial.print(" C | Distance: ");
+    Serial.print(" C | Hum: ");
+    Serial.print(humidity);
+    Serial.print(" % | Distance: ");
     Serial.print(distance);
     Serial.print(" cm | Box: ");
     Serial.print(isBoxOpen ? "open" : "closed");
@@ -174,8 +176,8 @@ void logSensorData() {
     Serial.println(digitalRead(BUTTONPIN));
 
     //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
-    String line0 = "T:" + String(temperature) + "C D:" + String((int)distance) + "cm";
-    String line1 = "Box:" + String(isBoxOpen ? "open" : "closed") + " M:" + String(isMotionDetected ? "yes" : "no");
+    String line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
+    String line1 = "D:" + String((int)distance) + "cm " + (isBoxOpen ? "open" : "closed");
     while (line0.length() < 16) line0 += ' ';
     while (line1.length() < 16) line1 += ' ';
     lcd.setCursor(0, 0);
@@ -193,6 +195,7 @@ void updateFan() {
 
     DHT11.read(DHT11PIN);
     temperature = DHT11.temperature;
+    humidity = DHT11.humidity;
 
     if (temperature >= FAN_TEMP_THRESHOLD) {
         analogWrite(FANPIN1, 100);
