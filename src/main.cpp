@@ -1,10 +1,4 @@
 #include <Arduino.h>
-#ifdef ESP32
-#include <WiFi.h>
-#elif defined(ESP8266)
-#include <ESP8266WiFi.h>
-#endif
-
 #include <dht11.h>
 #include <analogWrite.h>
 #include <ESP32_Servo.h>
@@ -27,20 +21,15 @@
 #define TRIGPIN         12  //Ultrasonic sensor trig pin
 #define ECHOPIN         13  //Ultrasonic sensor echo pin
 #define PIRPIN          23  //PIR motion sensor pin
-
-const char *ssid = "TP-Link_C36C";
-const char *pwd = "36856008";
+#define BUTTONPIN       5   //Push button pin (toggles LED)
 
 //Initialize LCD1602, 0x27 is I2C address
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-WiFiServer server(80); //Initialize wifi server
 dht11 DHT11; //Initialize temperature and humidity sensor
 Servo myservo; // create servo object to control a servo
 // 16 servo objects can be created on the ESP32
 
 //Define variable as detected values
-String request;
-String dataBuffer;
 int temperature; //Temperature
 int humidity; //Humidity
 int soilHumidity; //Soil humidity
@@ -58,24 +47,14 @@ const int FAN_TEMP_THRESHOLD = 28; //°C, fan turns on at or above this temperat
 unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
 bool isMotionDetected = false; //PIR motion sensor state
+bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
+int lastRawButtonReading = HIGH; //Raw button reading from the previous loop(), for bounce detection
+int stableButtonState = HIGH; //Debounced, accepted button state (active-low)
+unsigned long lastButtonChange = 0; //Last time the raw button reading changed
+const unsigned long BUTTON_DEBOUNCE_MS = 50; //ms to ignore bouncing after a change
 
 void setup() {
     Serial.begin(9600);
-    //Connect to wifi
-    WiFi.begin(ssid, pwd);
-    //Determine whether connected
-    Serial.println("Connecting to WiFi...");
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(1000);
-        Serial.print(".");
-    }
-    delay(1000);
-    //Serial monitor prints wifi name and IP address
-    Serial.println("Connected to WiFi");
-    Serial.print("WiFi NAME:");
-    Serial.println(ssid);
-    Serial.print("IP:");
-    Serial.println(WiFi.localIP());
 
     //Initialize LCD
     lcd.init();
@@ -83,14 +62,6 @@ void setup() {
     lcd.backlight();
     //lcd.noBacklight();
     lcd.clear();
-    //Set the position of cursor
-    lcd.setCursor(0, 0);
-    //LCD prints
-    lcd.print("IP:");
-    //Set the position of cursor
-    lcd.setCursor(0, 1);
-    //LCD prints
-    lcd.print(WiFi.localIP());
 
     //set pins mode
     pinMode(LEDPIN,OUTPUT);
@@ -105,13 +76,11 @@ void setup() {
     pinMode(TRIGPIN,OUTPUT);
     pinMode(ECHOPIN,INPUT);
     pinMode(PIRPIN,INPUT);
+    pinMode(BUTTONPIN,INPUT);
     delay(1000);
 
     // attaches the servo on pin 26 to the servo object
     myservo.attach(SERVOPIN);
-
-    //Start server
-    server.begin();
 }
 
 
@@ -132,20 +101,6 @@ void Music() {
         // stop the tone playing:
         noTone(BUZZERPIN);
     }
-}
-
-//Convert data into percentage
-String dataHandle(int data) {
-    // Convert analog values into percentage
-    int percentage = (data / 4095.0) * 100;
-    // If the converted percentage is greater than 100, output 100.
-    percentage = percentage > 100 ? 100 : percentage;
-    // Six characters store hexadecimal strings, one character is as terminators
-    char hexString[3];
-    // Convert hexadecimal values to 6-digit hexadecimal strings, add leading zeros: 0 is 00, 1 is 01...
-    sprintf(hexString, "%02X", percentage);
-
-    return hexString;
 }
 
 //Get distance from ultrasonic sensor, in cm
@@ -180,10 +135,22 @@ void updateFeedingBox() {
 //Read PIR motion sensor state (instant, no throttling needed)
 void updateMotion() {
     isMotionDetected = digitalRead(PIRPIN);
+}
 
-    if (isMotionDetected != 0) {
-        Serial.print(isMotionDetected);
+//Toggle LED on each button press (active-low, debounced, edge-triggered)
+void updateButton() {
+    int reading = digitalRead(BUTTONPIN);
+    if (reading != lastRawButtonReading) {
+        lastButtonChange = millis();
     }
+    if (millis() - lastButtonChange > BUTTON_DEBOUNCE_MS && reading != stableButtonState) {
+        stableButtonState = reading;
+        if (stableButtonState == LOW) {
+            isLedOn = !isLedOn;
+            digitalWrite(LEDPIN, isLedOn ? HIGH : LOW);
+        }
+    }
+    lastRawButtonReading = reading;
 }
 
 //Print current sensor readings in one human-readable line, at most once per LOG_INTERVAL
@@ -200,7 +167,11 @@ void logSensorData() {
     Serial.print(" cm | Box: ");
     Serial.print(isBoxOpen ? "open" : "closed");
     Serial.print(" | Motion: ");
-    Serial.println(isMotionDetected ? "yes" : "no");
+    Serial.print(isMotionDetected ? "yes" : "no");
+    Serial.print(" | LED: ");
+    Serial.print(isLedOn ? "on" : "off");
+    Serial.print(" | Button raw: ");
+    Serial.println(digitalRead(BUTTONPIN));
 }
 
 //Read temperature and auto-control fan via PWM (on >= FAN_TEMP_THRESHOLD, off otherwise)
@@ -243,63 +214,6 @@ void loop() {
     updateFeedingBox();
     updateFan();
     updateMotion();
+    updateButton();
     logSensorData();
-
-    //Check whether a client is connected to the web server
-    //When the client is connected to server, "server.available()" returns a WiFiClient object for communication at client-side.
-    WiFiClient client = server.available();
-    if (client) {
-        Serial.println("New client connected");
-        while (client.connected()) {
-            //Determine whether the server sends data
-            if (client.available()) {
-                request = client.readStringUntil('s');
-                Serial.print("Received message: ");
-                Serial.println(request);
-            }
-            //Acquire all senser data
-            getSensorsData();
-            //put all data into "dataBuffer"
-            dataBuffer = "";
-            dataBuffer += String(temperature,HEX);
-            dataBuffer += String(humidity,HEX);
-            dataBuffer += dataHandle(soilHumidity);
-            dataBuffer += dataHandle(light);
-            dataBuffer += dataHandle(waterLevel);
-            dataBuffer += dataHandle(rainwater);
-            //Send data to server, transmit to APP
-            client.print(dataBuffer);
-            delay(500);
-
-            //LED
-            if (request == "a") {
-                digitalWrite(LEDPIN,HIGH);
-            } else if (request == "A") {
-                digitalWrite(LEDPIN,LOW);
-            }
-            //Irrigation
-            else if (request == "b") {
-                digitalWrite(RELAYPIN,HIGH);
-                delay(400); //Irrigation delay
-                digitalWrite(RELAYPIN,LOW);
-                delay(650);
-            }
-            //Fan is auto-controlled by temperature, see updateFan()
-            //Feeding box
-            else if (request == "d") {
-                //Servo rotates to 180В°, open feeding box
-                myservo.write(80);
-                delay(500);
-            } else if (request == "D") {
-                //Servo rotates to 80В°, close feeding box
-                myservo.write(180);
-            }
-            //Music
-            else if (request == "e") {
-                Music();
-            }
-            request = "";
-        }
-        Serial.println("Client disconnected");
-    }
 }
