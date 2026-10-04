@@ -57,6 +57,8 @@ int stableButtonState = HIGH; //Debounced, accepted button state (active-low)
 unsigned long lastButtonChange = 0; //Last time the raw button reading changed
 const unsigned long BUTTON_DEBOUNCE_MS = 50; //ms to ignore bouncing after a change
 
+void Music(); //Forward declaration, defined below setup()
+
 void setup() {
     Serial.begin(9600);
 
@@ -85,6 +87,8 @@ void setup() {
 
     // attaches the servo on pin 26 to the servo object
     myservo.attach(SERVOPIN);
+
+    Music(); //Boot chime, confirms the buzzer is wired and working
 }
 
 
@@ -152,6 +156,11 @@ void updateButton() {
         if (stableButtonState == LOW) {
             isLedOn = !isLedOn;
             digitalWrite(LEDPIN, isLedOn ? HIGH : LOW);
+            if (isLedOn) {
+                Music(); //Play the tune once when turning on
+            } else {
+                noTone(BUZZERPIN); //Stop the tune immediately when turning off
+            }
         }
     }
     lastRawButtonReading = reading;
