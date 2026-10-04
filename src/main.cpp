@@ -172,6 +172,16 @@ void logSensorData() {
     Serial.print(isLedOn ? "on" : "off");
     Serial.print(" | Button raw: ");
     Serial.println(digitalRead(BUTTONPIN));
+
+    //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
+    String line0 = "T:" + String(temperature) + "C D:" + String((int)distance) + "cm";
+    String line1 = "Box:" + String(isBoxOpen ? "open" : "closed") + " M:" + String(isMotionDetected ? "yes" : "no");
+    while (line0.length() < 16) line0 += ' ';
+    while (line1.length() < 16) line1 += ' ';
+    lcd.setCursor(0, 0);
+    lcd.print(line0);
+    lcd.setCursor(0, 1);
+    lcd.print(line1);
 }
 
 //Read temperature and auto-control fan via PWM (on >= FAN_TEMP_THRESHOLD, off otherwise)
