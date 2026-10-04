@@ -48,6 +48,8 @@ unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Seri
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
 unsigned long lastRainCheck = 0; //Last time the steam/rainwater sensor was read
 const unsigned long RAIN_CHECK_INTERVAL = 2000; //ms between rainwater checks
+unsigned long lastLightCheck = 0; //Last time the photoresistor was read
+const unsigned long LIGHT_CHECK_INTERVAL = 2000; //ms between light checks
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
 int lastRawButtonReading = HIGH; //Raw button reading from the previous loop(), for bounce detection
@@ -177,7 +179,9 @@ void logSensorData() {
     Serial.print(" | Button raw: ");
     Serial.print(digitalRead(BUTTONPIN));
     Serial.print(" | Rain: ");
-    Serial.println(rainwater);
+    Serial.print(rainwater);
+    Serial.print(" | Light: ");
+    Serial.println(light);
 
     //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
     String line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
@@ -220,11 +224,22 @@ void updateRainwater() {
     rainwater = analogRead(RAINWATERPIN);
 }
 
+//Read photoresistor (higher value = brighter)
+void updateLight() {
+    if (millis() - lastLightCheck < LIGHT_CHECK_INTERVAL) {
+        return;
+    }
+    lastLightCheck = millis();
+
+    light = analogRead(LIGHTPIN);
+}
+
 void loop() {
     updateFeedingBox();
     updateFan();
     updateMotion();
     updateButton();
     updateRainwater();
+    updateLight();
     logSensorData();
 }
