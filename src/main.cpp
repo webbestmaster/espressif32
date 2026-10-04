@@ -53,7 +53,7 @@ unsigned long lastFeedingCheck = 0; //Last time the feeding box distance was che
 const unsigned long FEEDING_CHECK_INTERVAL = 2000; //ms between distance checks
 unsigned long lastFanCheck = 0; //Last time the temperature was checked for the fan
 const unsigned long FAN_CHECK_INTERVAL = 2000; //ms between temperature checks
-const int FAN_TEMP_THRESHOLD = 21; //°C, fan turns on at or above this temperature
+const int FAN_TEMP_THRESHOLD = 25; //°C, fan turns on at or above this temperature
 unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
 
