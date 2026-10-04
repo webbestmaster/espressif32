@@ -159,15 +159,15 @@ void updateFeedingBox() {
     lastFeedingCheck = millis();
 
     float dist = getDistance();
-    // Serial.print("distance: ");
-    // Serial.print(dist);
-    // Serial.println(" cm");
-    if (!boxOpen && dist <= 10) {
-        // Serial.println("servo -> 70 (open)");
+    Serial.print("distance: ");
+    Serial.print(dist);
+    Serial.println(" cm");
+    if (dist <= 5) {
+        Serial.println("servo -> 70 (open)");
         myservo.write(70);
         boxOpen = true;
-    } else if (boxOpen && dist > 15) {
-        // Serial.println("servo -> 180 (close)");
+    } else if (dist > 7) {
+        Serial.println("servo -> 180 (close)");
         myservo.write(180);
         boxOpen = false;
     }
