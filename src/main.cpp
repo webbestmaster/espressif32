@@ -60,8 +60,11 @@ const int WATER_LEVEL_MIN = 1000; //waterLevel >= this is considered enough wate
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
 int stableButtonState = HIGH; //Last accepted button state (active-low)
+int lcdPage = 0; //Which data block is currently shown on the LCD
+const int LCD_PAGE_COUNT = 4; //Number of LCD data blocks, cycled by button press
 
 void Music(); //Forward declaration, defined below setup()
+void renderLcdPage(); //Forward declaration, defined below logSensorData()
 
 void setup() {
     Serial.begin(9600);
@@ -156,7 +159,7 @@ void updateMotion() {
     isMotionDetected = digitalRead(PIRPIN);
 }
 
-//Toggle LED on each button press (active-low, edge-triggered)
+//Toggle LED and advance the LCD page on each button press (active-low, edge-triggered)
 void updateButton() {
     int reading = digitalRead(BUTTONPIN);
     if (reading != stableButtonState) {
@@ -169,6 +172,9 @@ void updateButton() {
             // } else {
             //     noTone(BUZZERPIN); //Stop the tune immediately when turning off
             // }
+
+            lcdPage = (lcdPage + 1) % LCD_PAGE_COUNT;
+            renderLcdPage(); //Redraw immediately so the switch feels instant
         }
     }
 }
@@ -203,10 +209,40 @@ void logSensorData() {
     Serial.print(" | Soil: ");
     Serial.println(soilHumidity);
 
-    //Mirror the key readings on the 16x2 LCD (row addressing hides anything past column 15)
-    String line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
-    String line1 = "D:" + String((int)distance) + "cm " + (isBoxOpen ? "open" : "closed");
-    while (line0.length() < 16) line0 += ' ';
+    renderLcdPage(); //Refresh the currently selected block with the latest values
+}
+
+//Draw the data block selected by lcdPage on the 16x2 LCD (row addressing hides anything past column 15)
+//Page only changes on button press (see updateButton()); this just repaints the current page.
+void renderLcdPage() {
+    String line0;
+    String line1;
+    switch (lcdPage) {
+        case 0:
+            line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
+            line1 = "Box:" + String(isBoxOpen ? "open" : "closed");
+            break;
+        case 1:
+            line0 = "Dist:" + String((int)distance) + "cm";
+            line1 = "Motion:" + String(isMotionDetected ? "yes" : "no");
+            break;
+        case 2:
+            line0 = "Light:" + String(light);
+            line1 = "Rain:" + String(rainwater);
+            break;
+        default:
+            line0 = "Water:" + String(waterLevel);
+            line1 = "Soil:" + String(soilHumidity);
+            break;
+    }
+    //Right-align a "page/total" tag on line0, truncating content if it would collide
+    String pageTag = String(lcdPage + 1) + "/" + String(LCD_PAGE_COUNT);
+    int contentWidth = 16 - pageTag.length() - 1;
+    if ((int)line0.length() > contentWidth) line0 = line0.substring(0, contentWidth);
+    while ((int)line0.length() < contentWidth) line0 += ' ';
+    line0 += ' ';
+    line0 += pageTag;
+
     while (line1.length() < 16) line1 += ' ';
     lcd.setCursor(0, 0);
     lcd.print(line0);
