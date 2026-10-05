@@ -125,6 +125,9 @@ float getDistance() {
     delayMicroseconds(10); //Trigger the trig pin via a high level lasting at least 10us
     digitalWrite(TRIGPIN,LOW);
     duration = pulseIn(ECHOPIN,HIGH, 30000); //timeout 30ms (~5m range), avoids blocking loop when no echo
+    if (duration == 0) {
+        return -1; //no echo (out of range or wiring fault): caller must not treat this as "close"
+    }
     distance = duration / 58.0; //convert into distance(cm)
     return distance;
 }
@@ -137,10 +140,13 @@ void updateFeedingBox() {
     lastFeedingCheck = millis();
 
     float dist = getDistance();
+    if (dist < 0) {
+        return; //no echo this cycle, keep current box state
+    }
     if (dist <= 5) {
         myservo.write(70);
         isBoxOpen = true;
-    } else if (dist > 7) {
+    } else if (dist > 8) {
         myservo.write(180);
         isBoxOpen = false;
     }
