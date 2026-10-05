@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <dht11.h>
-#include <analogWrite.h>
 #include <ESP32_Servo.h>
 #include <LiquidCrystal_I2C.h>
 #include "BuzzerMusic.h"
@@ -215,7 +214,7 @@ void logSensorData() {
     lcd.print(line1);
 }
 
-//Read temperature and auto-control fan via PWM (on >= FAN_TEMP_THRESHOLD, off otherwise)
+//Read temperature and auto-control fan (on >= FAN_TEMP_THRESHOLD, off otherwise)
 void updateFan() {
     if (millis() - lastFanCheck < FAN_CHECK_INTERVAL) {
         return;
@@ -227,11 +226,11 @@ void updateFan() {
     humidity = DHT11.humidity;
 
     if (temperature >= FAN_TEMP_THRESHOLD) {
-        analogWrite(FANPIN1, 100);
-        analogWrite(FANPIN2, 0);
+        digitalWrite(FANPIN1, HIGH);
+        digitalWrite(FANPIN2, LOW);
     } else {
-        analogWrite(FANPIN1, 0);
-        analogWrite(FANPIN2, 0);
+        digitalWrite(FANPIN1, LOW);
+        digitalWrite(FANPIN2, LOW);
     }
 }
 
