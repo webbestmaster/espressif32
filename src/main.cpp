@@ -312,13 +312,18 @@ void updateSoilHumidity() {
 
 //Auto-irrigation: pulse the water pump relay when soil is dry and the reservoir has enough water
 void updateIrrigation() {
-    return;
     if (millis() - lastIrrigationCheck < IRRIGATION_CHECK_INTERVAL) {
         return;
     }
     lastIrrigationCheck = millis();
 
-    if (soilHumidity <= SOIL_DRY_THRESHOLD && waterLevel >= WATER_LEVEL_MIN) {
+    // if (soilHumidity <= SOIL_DRY_THRESHOLD && waterLevel >= WATER_LEVEL_MIN) {
+    //     Serial.println("Irrigation: pump pulse");
+    //     digitalWrite(RELAYPIN, HIGH);
+    //     delay(400); //irrigation pulse
+    //     digitalWrite(RELAYPIN, LOW);
+    // }
+    if (waterLevel >= WATER_LEVEL_MIN) {
         Serial.println("Irrigation: pump pulse");
         digitalWrite(RELAYPIN, HIGH);
         delay(400); //irrigation pulse
