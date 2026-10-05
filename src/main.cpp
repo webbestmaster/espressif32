@@ -60,10 +60,7 @@ const int SOIL_DRY_THRESHOLD = 500; //soilHumidity <= this is considered dry (ne
 const int WATER_LEVEL_MIN = 1000; //waterLevel >= this is considered enough water in the reservoir
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
-int lastRawButtonReading = HIGH; //Raw button reading from the previous loop(), for bounce detection
-int stableButtonState = HIGH; //Debounced, accepted button state (active-low)
-unsigned long lastButtonChange = 0; //Last time the raw button reading changed
-const unsigned long BUTTON_DEBOUNCE_MS = 50; //ms to ignore bouncing after a change
+int stableButtonState = HIGH; //Last accepted button state (active-low)
 
 void Music(); //Forward declaration, defined below setup()
 
@@ -154,25 +151,21 @@ void updateMotion() {
     isMotionDetected = digitalRead(PIRPIN);
 }
 
-//Toggle LED on each button press (active-low, debounced, edge-triggered)
+//Toggle LED on each button press (active-low, edge-triggered)
 void updateButton() {
     int reading = digitalRead(BUTTONPIN);
-    if (reading != lastRawButtonReading) {
-        lastButtonChange = millis();
-    }
-    if (millis() - lastButtonChange > BUTTON_DEBOUNCE_MS && reading != stableButtonState) {
+    if (reading != stableButtonState) {
         stableButtonState = reading;
         if (stableButtonState == LOW) {
             isLedOn = !isLedOn;
             digitalWrite(LEDPIN, isLedOn ? HIGH : LOW);
-            if (isLedOn) {
-                Music(); //Play the tune once when turning on
-            } else {
-                noTone(BUZZERPIN); //Stop the tune immediately when turning off
-            }
+            // if (isLedOn) {
+            //     Music(); //Play the tune once when turning on
+            // } else {
+            //     noTone(BUZZERPIN); //Stop the tune immediately when turning off
+            // }
         }
     }
-    lastRawButtonReading = reading;
 }
 
 //Print current sensor readings in one human-readable line, at most once per LOG_INTERVAL
