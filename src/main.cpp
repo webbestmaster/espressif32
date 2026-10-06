@@ -219,11 +219,11 @@ void renderLcdPage() {
     String line1;
     switch (lcdPage) {
         case 0:
-            line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
+            line0 = "Dist:" + String((int)distance) + "cm";
             line1 = "Box:" + String(isBoxOpen ? "open" : "closed");
             break;
         case 1:
-            line0 = "Dist:" + String((int)distance) + "cm";
+            line0 = "T:" + String(temperature) + "C H:" + String(humidity) + "%";
             line1 = "Motion:" + String(isMotionDetected ? "yes" : "no");
             break;
         case 2:
