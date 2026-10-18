@@ -42,7 +42,7 @@ unsigned long lastFeedingCheck = 0; //Last time the feeding box distance was che
 const unsigned long FEEDING_CHECK_INTERVAL = 2000; //ms between distance checks
 unsigned long lastFanCheck = 0; //Last time the temperature was checked for the fan
 const unsigned long FAN_CHECK_INTERVAL = 2000; //ms between temperature checks
-const int FAN_TEMP_THRESHOLD = 28; //°C, fan turns on at or above this temperature
+const int FAN_TEMP_THRESHOLD = 26; //°C, fan turns on at or above this temperature
 unsigned long lastLogCheck = 0; //Last time sensor readings were printed to Serial
 const unsigned long LOG_INTERVAL = 2000; //ms between human-readable log lines
 unsigned long lastRainCheck = 0; //Last time the steam/rainwater sensor was read
@@ -56,7 +56,7 @@ const unsigned long SOIL_HUMIDITY_CHECK_INTERVAL = 2000; //ms between soil humid
 unsigned long lastIrrigationCheck = 0; //Last time the irrigation condition was checked
 const unsigned long IRRIGATION_CHECK_INTERVAL = 2000; //ms between irrigation checks
 const int SOIL_DRY_THRESHOLD = 500; //soilHumidity <= this is considered dry (needs water)
-const int WATER_LEVEL_MIN = 1000; //waterLevel >= this is considered enough water in the reservoir
+const int WATER_LEVEL_MIN = 1600; //waterLevel >= this is considered enough water in the reservoir
 bool isMotionDetected = false; //PIR motion sensor state
 bool isLedOn = false; //LED state, kept in sync with both the button and the app commands
 int stableButtonState = HIGH; //Last accepted button state (active-low)
